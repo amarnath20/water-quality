@@ -1,0 +1,15 @@
+n_samples=13, n_features=9
+
+Fold 1: test n=3, R2=0.6005, RMSE=7.2308
+Fold 2: test n=3, R2=0.2881, RMSE=9.1132
+Fold 3: test n=3, R2=0.5716, RMSE=5.3795
+Fold 4: test n=2, R2=0.2057, RMSE=8.4670
+Fold 5: test n=2, R2=-10.5858, RMSE=5.1057
+
+Worst fold:
+{'fold': 5, 'r2': -10.58580555555557, 'rmse': 5.105689228693814, 'n_test': 2, 'test_idx': [np.int64(3), np.int64(6)]}
+
+Predictions on worst fold (rows show feature columns + y_true + y_pred):
+   Unnamed: 0  Inlet  Weather  Weather.1  Weather.2  Weather.3  Weather.4  Weather.5  Weather.6  y_true  y_pred
+3           4    221     27.7       19.4       30.0        0.5       13.2      728.3      63.84      61  57.715
+6           7    165     28.9       19.9       31.0        2.0       14.2      717.2      70.07      58  64.430

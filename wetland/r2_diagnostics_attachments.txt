@@ -1,0 +1,130 @@
+=== File: C:\Users\user\amar (2)\amar\monsoon.xlsx ===
+
+Head (first 5 rows):
+  Unnamed: 0       Inlet      Outlet  ... Weather.4 Weather.5          Weather.6
+0      Weeks  BOD (mg/l)  BOD (mg/l)  ...      wspd      wpgt  Relative Humidity
+1          1         267          54  ...      10.1     724.4              62.33
+2          2         229          56  ...      10.9     722.6              64.06
+3          3         206          51  ...        12     718.7              64.61
+4          4         221          61  ...      13.2     728.3              63.84
+
+[5 rows x 10 columns]
+
+Column types:
+Unnamed: 0    object
+Inlet         object
+Outlet        object
+Weather       object
+Weather.1     object
+Weather.2     object
+Weather.3     object
+Weather.4     object
+Weather.5     object
+Weather.6     object
+dtype: object
+
+Missing values per column:
+Unnamed: 0    0
+Inlet         0
+Outlet        0
+Weather       0
+Weather.1     0
+Weather.2     0
+Weather.3     0
+Weather.4     0
+Weather.5     0
+Weather.6     0
+dtype: int64
+
+Numeric descriptive stats:
+No numeric columns present after coercion.
+
+Rows: 14, Columns: 10
+
+
+=== File: C:\Users\user\amar (2)\amar\summer.xlsx ===
+
+Head (first 5 rows):
+  Unnamed: 0       Inlet      Outlet  ... Weather.4 Weather.5          Weather.6
+0      Weeks  BOD (mg/l)  BOD (mg/l)  ...      wspd      wpgt  Relative Humidity
+1          1         150          44  ...       6.2     727.2              65.96
+2          2         150          44  ...         5     741.6              67.83
+3          3         150          42  ...       6.9     736.6              65.88
+4          4         181          54  ...       7.5     739.7              63.51
+
+[5 rows x 10 columns]
+
+Column types:
+Unnamed: 0    object
+Inlet         object
+Outlet        object
+Weather       object
+Weather.1     object
+Weather.2     object
+Weather.3     object
+Weather.4     object
+Weather.5     object
+Weather.6     object
+dtype: object
+
+Missing values per column:
+Unnamed: 0    0
+Inlet         0
+Outlet        0
+Weather       0
+Weather.1     0
+Weather.2     0
+Weather.3     0
+Weather.4     0
+Weather.5     0
+Weather.6     0
+dtype: int64
+
+Numeric descriptive stats:
+No numeric columns present after coercion.
+
+Rows: 14, Columns: 10
+
+
+=== File: C:\Users\user\amar (2)\amar\winter.csv ===
+
+Head (first 5 rows):
+  Unnamed: 0       Inlet      Outlet  ... Weather.4 Weather.5          Weather.6
+0      Weeks  BOD (mg/l)  BOD (mg/l)  ...      wspd      wpgt  Relative Humidity
+1          1         207         130  ...      8.23   1009.16                 65
+2          2         198         121  ...      8.04   1008.66        64.14285714
+3          3         201         119  ...      7.23   1008.76        64.85714286
+4          4         210         122  ...       7.5   1010.11        64.85714286
+
+[5 rows x 10 columns]
+
+Column types:
+Unnamed: 0    object
+Inlet         object
+Outlet        object
+Weather       object
+Weather.1     object
+Weather.2     object
+Weather.3     object
+Weather.4     object
+Weather.5     object
+Weather.6     object
+dtype: object
+
+Missing values per column:
+Unnamed: 0    0
+Inlet         0
+Outlet        0
+Weather       0
+Weather.1     0
+Weather.2     0
+Weather.3     0
+Weather.4     0
+Weather.5     0
+Weather.6     0
+dtype: int64
+
+Numeric descriptive stats:
+No numeric columns present after coercion.
+
+Rows: 25, Columns: 10

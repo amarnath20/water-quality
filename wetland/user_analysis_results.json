@@ -1,0 +1,15 @@
+{
+  "target": "Outlet",
+  "features_used": [
+    "Inlet"
+  ],
+  "removed": [],
+  "comparison": {
+    "r2_all": 0.3177172494012024,
+    "r2_reduced": 0.3177172494012024
+  },
+  "season": {
+    "Summer": 0.2012922702130906,
+    "Monsoon": -0.7060932088285246
+  }
+}
