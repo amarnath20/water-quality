@@ -244,7 +244,7 @@ if data is not None:
                        title="Correlation Matrix",
                        aspect="auto",
                        color_continuous_scale="RdBu_r")
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width='stretch')
 
         # Time series plots
         st.subheader("Time Series Analysis")
@@ -271,7 +271,7 @@ if data is not None:
             )
 
         fig.update_layout(height=600, title_text="Inlet vs Outlet Parameters Over Time")
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width='stretch')
 
     elif page == "Model Training":
         st.header("🤖 Model Training")
@@ -305,7 +305,7 @@ if data is not None:
 
         fig = px.bar(importance_df, x='Importance', y='Feature', orientation='h',
                      title='Feature Importance (Random Forest - BOD Model)')
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width='stretch')
 
         # Store models in session state
         st.session_state['models'] = models
@@ -379,13 +379,13 @@ if data is not None:
                     ]
                 })
 
-                st.dataframe(pred_df, use_container_width=True)
+                st.dataframe(pred_df, width='stretch')
 
                 # Visualization
                 fig = px.bar(pred_df, x='Parameter', y='Predicted Value',
                            title='Predicted Outlet Water Quality Parameters')
                 fig.update_layout(xaxis_tickangle=-45)
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, width='stretch')
 
                 # Treatment efficiency
                 st.subheader("Treatment Efficiency")
@@ -401,7 +401,7 @@ if data is not None:
                     (efficiency_df['Inlet'] - efficiency_df['Outlet']) / efficiency_df['Inlet'] * 100
                 )
 
-                st.dataframe(efficiency_df, use_container_width=True)
+                st.dataframe(efficiency_df, width='stretch')
 
     elif page == "Model Performance":
         st.header("📈 Model Performance Analysis")
@@ -420,7 +420,7 @@ if data is not None:
                 'RMSE': [f"{metrics['rmse']:.3f}" for metrics in performance_metrics.values()]
             })
 
-            st.dataframe(metrics_df, use_container_width=True)
+            st.dataframe(metrics_df, width='stretch')
 
             # Actual vs Predicted plots
             st.subheader("Actual vs Predicted Values")
@@ -456,7 +456,7 @@ if data is not None:
             fig.update_layout(height=600, title_text="Actual vs Predicted Values for All Parameters")
             fig.update_xaxes(title_text="Actual")
             fig.update_yaxes(title_text="Predicted")
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width='stretch')
 
             # Residuals plot
             st.subheader("Residual Analysis")
@@ -475,13 +475,13 @@ if data is not None:
                                title=f'Residuals vs Predicted ({selected_param})',
                                labels={'x': 'Predicted Values', 'y': 'Residuals'})
                 fig.add_hline(y=0, line_dash="dash", line_color="red")
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, width='stretch')
 
             with col2:
                 # Residuals histogram
                 fig = px.histogram(x=residuals, title=f'Residuals Distribution ({selected_param})',
                                  labels={'x': 'Residuals'})
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, width='stretch')
 
 else:
     st.error("Could not load the training data. Please check if the files exist in the Downloads folder.")
@@ -489,3 +489,4 @@ else:
 # Footer
 st.markdown("---")
 st.markdown("**Water Treatment Prediction System** - Built with Streamlit and Machine Learning")
+

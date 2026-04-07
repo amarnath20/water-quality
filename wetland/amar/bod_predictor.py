@@ -6,10 +6,10 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
-from sklearn.ensemble import ExtraTreesRegressor
-from sklearn.inspection import permutation_importance
+from sklearn.ensemble import GradientBoostingRegressor
 from sklearn.metrics import mean_squared_error, r2_score
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import KFold, cross_val_predict
+from sklearn.preprocessing import StandardScaler
 
 warnings.filterwarnings('ignore')
 
@@ -250,50 +250,124 @@ def load_and_prepare_data(uploaded_file=None):
     return df
 
 
+def add_seasonal_features(df):
+    """Encode seasonal progression with cyclical week features."""
+    enriched = df.copy()
+    week_cycle = (enriched['Weeks'].astype(float) % 52.0) / 52.0
+    enriched['Week_Sin'] = np.sin(2 * np.pi * week_cycle)
+    enriched['Week_Cos'] = np.cos(2 * np.pi * week_cycle)
+    return enriched
+
+
+def clip_iqr_outliers(df, columns):
+    """Cap extreme values using IQR bounds for stable training."""
+    clipped = df.copy()
+    for col in columns:
+        q1 = clipped[col].quantile(0.25)
+        q3 = clipped[col].quantile(0.75)
+        iqr = q3 - q1
+        lower = q1 - 1.5 * iqr
+        upper = q3 + 1.5 * iqr
+        clipped[col] = clipped[col].clip(lower=lower, upper=upper)
+    return clipped
+
+
+def infer_season(week_value):
+    """Map week number to broad seasonal windows for diagnostics."""
+    week = int(week_value)
+    week_of_year = ((week - 1) % 52) + 1
+    if week_of_year <= 8 or week_of_year >= 49:
+        return 'Winter'
+    if week_of_year <= 22:
+        return 'Summer'
+    if week_of_year <= 39:
+        return 'Monsoon'
+    return 'Post-Monsoon'
+
+
 def train_bod_model(data):
-    feature_columns = ['Weeks', 'Inlet_BOD', 'Weather_tavg', 'Weather_prcp', 'Weather_wspd', 'Weather_rhum']
-    X = data[feature_columns]
-    y = data['Outlet_BOD']
+    prepared = add_seasonal_features(data)
+    feature_columns = [
+        'Weeks',
+        'Inlet_BOD',
+        'Weather_tavg',
+        'Weather_prcp',
+        'Weather_wspd',
+        'Weather_rhum',
+        'Week_Sin',
+        'Week_Cos',
+    ]
 
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+    clean = clip_iqr_outliers(prepared, feature_columns + ['Outlet_BOD']).dropna().reset_index(drop=True)
+    X = clean[feature_columns]
+    y = clean['Outlet_BOD']
 
-    model = ExtraTreesRegressor(
-        n_estimators=200,
-        max_depth=8,
-        min_samples_leaf=1,
+    scaler = StandardScaler()
+    X_scaled = scaler.fit_transform(X)
+
+    model = GradientBoostingRegressor(
+        n_estimators=250,
+        learning_rate=0.05,
+        max_depth=3,
+        min_samples_split=4,
         random_state=42,
     )
-    model.fit(X_train, y_train)
 
-    y_pred = model.predict(X_test)
-    mse = mean_squared_error(y_test, y_pred)
-    holdout_r2 = r2_score(y_test, y_pred)
+    n_splits = 5 if len(X) >= 5 else max(2, len(X))
+    cv = KFold(n_splits=n_splits, shuffle=True, random_state=42)
+    y_pred_cv = cross_val_predict(model, X_scaled, y, cv=cv)
 
-    perm = permutation_importance(model, X_test, y_test, n_repeats=20, random_state=42, scoring='r2')
+    fold_scores = []
+    for train_idx, test_idx in cv.split(X_scaled):
+        fold_model = GradientBoostingRegressor(
+            n_estimators=250,
+            learning_rate=0.05,
+            max_depth=3,
+            min_samples_split=4,
+            random_state=42,
+        )
+        fold_model.fit(X_scaled[train_idx], y.iloc[train_idx])
+        fold_pred = fold_model.predict(X_scaled[test_idx])
+        fold_scores.append(r2_score(y.iloc[test_idx], fold_pred))
+
+    mean_cv_r2 = float(np.mean(fold_scores))
+    std_cv_r2 = float(np.std(fold_scores))
+    mse = mean_squared_error(y, y_pred_cv)
+
+    model.fit(X_scaled, y)
+
     feature_importance = pd.DataFrame(
-        {
-            'Feature': feature_columns,
-            'Importance': perm.importances_mean,
-            'Std': perm.importances_std,
-        }
+        {'Feature': feature_columns, 'Importance': model.feature_importances_}
     ).sort_values('Importance', ascending=True)
+
+    season_labels = clean['Weeks'].apply(infer_season)
+    seasonal_r2 = {}
+    for season in ['Winter', 'Summer', 'Monsoon', 'Post-Monsoon']:
+        mask = season_labels == season
+        if mask.sum() >= 2:
+            seasonal_r2[season] = float(r2_score(y[mask], y_pred_cv[mask]))
 
     metrics = {
         'mse': mse,
         'rmse': np.sqrt(mse),
-        'holdout_r2': holdout_r2,
-        'y_test': y_test,
-        'y_pred': y_pred,
+        'cv_r2_mean': mean_cv_r2,
+        'cv_r2_std': std_cv_r2,
+        'fold_scores': fold_scores,
+        'y_test': y,
+        'y_pred': y_pred_cv,
         'feature_importance': feature_importance,
-        'split_sizes': {'train_size': len(X_train), 'test_size': len(X_test), 'total_size': len(X)},
+        'seasonal_r2': seasonal_r2,
+        'split_sizes': {'train_size': len(X), 'test_size': len(X), 'total_size': len(X), 'cv_folds': n_splits},
     }
 
-    return model, metrics, feature_columns
+    return model, scaler, metrics, feature_columns
 
 
-def predict_bod(model, feature_columns, input_data):
-    input_df = pd.DataFrame([input_data], columns=feature_columns)
-    return max(0.0, float(model.predict(input_df)[0]))
+def predict_bod(model, scaler, feature_columns, input_data):
+    input_df = pd.DataFrame([input_data], columns=['Weeks', 'Inlet_BOD', 'Weather_tavg', 'Weather_prcp', 'Weather_wspd', 'Weather_rhum'])
+    input_df = add_seasonal_features(input_df)
+    input_scaled = scaler.transform(input_df[feature_columns])
+    return max(0.0, float(model.predict(input_scaled)[0]))
 
 
 def get_status_details(outlet_bod):
@@ -363,7 +437,7 @@ st.sidebar.markdown(
     """
     <div class='glass-card'>
         <div class='prediction-label'>AI Water Intelligence</div>
-        <div style='margin-top:0.45rem;color:#dceefa;line-height:1.6;'>Seasonal BOD prediction tuned for the wetlands dataset with an 80/20 split.</div>
+        <div style='margin-top:0.45rem;color:#dceefa;line-height:1.6;'>Seasonal BOD prediction tuned with Gradient Boosting and K-fold cross-validation.</div>
     </div>
     """,
     unsafe_allow_html=True,
@@ -373,11 +447,11 @@ page = st.sidebar.radio('Navigation', ['Dashboard', 'Data Upload', 'Model Perfor
 uploaded_file = st.sidebar.file_uploader('Upload training CSV', type=['csv'])
 
 data = load_and_prepare_data(uploaded_file)
-model, metrics, feature_columns = train_bod_model(data)
+model, scaler, metrics, feature_columns = train_bod_model(data)
 
 st.sidebar.markdown('### Dataset Summary')
 st.sidebar.caption(f"Rows loaded: {metrics['split_sizes']['total_size']}")
-st.sidebar.caption(f"Holdout R²: {metrics['holdout_r2']:.2f}")
+st.sidebar.caption(f"CV R² (mean): {metrics['cv_r2_mean']:.2f}")
 
 weeks_default = int(data['Weeks'].median()) if 'Weeks' in data.columns else 1
 inlet_default = float(data['Inlet_BOD'].median())
@@ -396,8 +470,8 @@ st.markdown(
         <div class='hero-subtitle'>AI-Based BOD Prediction System for inlet quality tracking, treatment insight, and environment-aware forecasting.</div>
         <div class='hero-stats'>
             <div class='stat-pill'><div class='label'>Samples Loaded</div><div class='value'>{metrics['split_sizes']['total_size']}</div></div>
-            <div class='stat-pill'><div class='label'>Holdout R²</div><div class='value'>{metrics['holdout_r2']:.2f}</div></div>
-            <div class='stat-pill'><div class='label'>Train/Test Split</div><div class='value'>80/20</div></div>
+            <div class='stat-pill'><div class='label'>CV Mean R²</div><div class='value'>{metrics['cv_r2_mean']:.2f}</div></div>
+            <div class='stat-pill'><div class='label'>Validation</div><div class='value'>{metrics['split_sizes']['cv_folds']}-Fold CV</div></div>
         </div>
     </div>
     """,
@@ -419,11 +493,11 @@ if page == 'Dashboard':
             weather_wspd = st.number_input('Wind Speed', min_value=0.0, value=weather_defaults['Weather_wspd'], step=0.1)
             weather_rhum = st.number_input('Humidity (%)', min_value=0.0, max_value=100.0, value=weather_defaults['Weather_rhum'], step=0.1)
 
-        predict_clicked = st.button('Predict Outlet BOD', use_container_width=True)
+        predict_clicked = st.button('Predict Outlet BOD', width='stretch')
         if predict_clicked:
             weeks = weeks_default
             input_data = [weeks, inlet_bod, weather_tavg, weather_prcp, weather_wspd, weather_rhum]
-            prediction = predict_bod(model, feature_columns, input_data)
+            prediction = predict_bod(model, scaler, feature_columns, input_data)
             efficiency = treatment_efficiency(inlet_bod, prediction)
             status_label, status_class, status_note = get_status_details(prediction)
             st.session_state.latest_prediction = prediction
@@ -469,23 +543,43 @@ if page == 'Dashboard':
     st.markdown("<div class='section-title' style='margin-top:1rem;'>Visualization Section</div>", unsafe_allow_html=True)
     viz1, viz2 = st.columns(2, gap='large')
     with viz1:
-        st.plotly_chart(build_actual_predicted_chart(metrics), use_container_width=True, config={'displayModeBar': False})
+        st.plotly_chart(build_actual_predicted_chart(metrics), width='stretch', config={'displayModeBar': False})
     with viz2:
-        st.plotly_chart(build_feature_importance_chart(metrics), use_container_width=True, config={'displayModeBar': False})
+        st.plotly_chart(build_feature_importance_chart(metrics), width='stretch', config={'displayModeBar': False})
 
 elif page == 'Data Upload':
     st.markdown("<div class='section-title'>Data Upload</div>", unsafe_allow_html=True)
     st.markdown("<div class='section-subtitle'>Upload a training CSV that matches the wetlands format. The app will automatically retrain and refresh the score.</div>", unsafe_allow_html=True)
-    st.dataframe(data.head(12), use_container_width=True, hide_index=True)
+    st.dataframe(data.head(12), width='stretch', hide_index=True)
 
 elif page == 'Model Performance':
     st.markdown("<div class='section-title'>Model Performance</div>", unsafe_allow_html=True)
     a, b, c = st.columns(3)
-    a.metric('Holdout R²', f"{metrics['holdout_r2']:.2f}")
+    a.metric('CV Mean R²', f"{metrics['cv_r2_mean']:.2f}")
     b.metric('RMSE', f"{metrics['rmse']:.2f}")
-    c.metric('Samples', f"{metrics['split_sizes']['total_size']}")
-    st.plotly_chart(build_actual_predicted_chart(metrics), use_container_width=True, config={'displayModeBar': False})
-    st.plotly_chart(build_feature_importance_chart(metrics), use_container_width=True, config={'displayModeBar': False})
+    c.metric('CV R² Std', f"{metrics['cv_r2_std']:.2f}")
+    seasonal = metrics.get('seasonal_r2', {})
+    if seasonal:
+        season_df = pd.DataFrame({'Season': list(seasonal.keys()), 'R2': list(seasonal.values())})
+        season_fig = px.bar(
+            season_df,
+            x='Season',
+            y='R2',
+            title='Seasonal R² Diagnostics',
+            template='plotly_dark',
+            color='R2',
+            color_continuous_scale=['#35c2ff', '#31f0c6'],
+        )
+        season_fig.update_layout(
+            paper_bgcolor='rgba(0,0,0,0)',
+            plot_bgcolor='rgba(0,0,0,0)',
+            font=dict(color='#dceefa', family='Poppins'),
+            margin=dict(l=20, r=20, t=55, b=20),
+            coloraxis_showscale=False,
+        )
+        st.plotly_chart(season_fig, width='stretch', config={'displayModeBar': False})
+    st.plotly_chart(build_actual_predicted_chart(metrics), width='stretch', config={'displayModeBar': False})
+    st.plotly_chart(build_feature_importance_chart(metrics), width='stretch', config={'displayModeBar': False})
 
 elif page == 'Reports':
     st.markdown("<div class='section-title'>Reports</div>", unsafe_allow_html=True)
@@ -502,7 +596,7 @@ elif page == 'Reports':
                 <div class='prediction-label'>Current Water Status</div>
                 <div style='margin:0.6rem 0 0.9rem;'><span class='status-badge status-warning'>● {report_status}</span></div>
                 <div style='color:#d8edf9;line-height:1.7;'>{report_note}</div>
-                <div style='margin-top:0.8rem;color:#d8edf9;line-height:1.7;'>The model is tuned on the seasonal wetlands file and the 80/20 holdout score is displayed with two-decimal precision so it reads as 0.85 when the target configuration is active.</div>
+                <div style='margin-top:0.8rem;color:#d8edf9;line-height:1.7;'>The model is trained as Gradient Boosting Regression with engineered seasonal features and evaluated with {metrics['split_sizes']['cv_folds']}-fold cross-validation.</div>
             </div>
             """,
             unsafe_allow_html=True,
@@ -512,4 +606,5 @@ st.markdown(
     "<div style='height:1px;background:linear-gradient(90deg,transparent,rgba(89,206,255,0.35),transparent);margin:0.9rem 0 0.6rem;'></div>",
     unsafe_allow_html=True,
 )
-st.caption('Water Quality Monitoring Dashboard · 80/20 holdout evaluation')
+st.caption(f"Water Quality Monitoring Dashboard · Gradient Boosting with {metrics['split_sizes']['cv_folds']}-fold cross-validation")
+

@@ -1,227 +1,130 @@
-# Water Treatment Prediction System 💧
+# Wetland Water Quality Prediction
 
-A Streamlit application that predicts outlet water quality parameters based on inlet conditions and weather data using machine learning.
+This repository contains two Streamlit applications for forecasting wetland treatment outcomes from inlet and weather data.
 
-## Overview
+- `bod_predictor.py`: Seasonal Outlet BOD forecasting using Gradient Boosting Regression.
+- `water_treatment_predictor.py`: Multi-parameter outlet prediction using per-target Random Forest models.
 
-This application analyzes water treatment data and uses Random Forest regression models to predict outlet water quality parameters. The system takes into account:
-- **Inlet Parameters**: BOD, COD, TDS, EC, NH4, NO3, DO, pH
-- **Weather Data**: Temperature (avg, min, max), precipitation, wind speed, pressure
-- **Outlet Predictions**: All corresponding outlet parameters
+## Abstract-Style Project Overview
 
-## Features
+Constructed wetlands are cost-effective and energy-efficient wastewater treatment systems, but their behavior changes significantly across seasons. In monsoon-influenced conditions, variation in rainfall, humidity, and hydraulic loading introduces nonlinear dynamics in pollutant removal, especially in BOD.
 
-1. **Data Analysis**: 
-   - Dataset overview and statistics
-   - Correlation analysis with heatmaps
-   - Time series visualization of inlet vs outlet parameters
+The BOD module in this project uses a data-driven workflow to improve forecast reliability:
 
-2. **Model Training**: 
-   - Random Forest models for each outlet parameter
-   - Performance metrics (R², RMSE, MSE)
-   - Feature importance analysis
+- Gradient Boosting Regression as the core model.
+- Seasonal feature engineering from week index using cyclical encoding.
+- Data preprocessing with missing-value cleanup, IQR-based outlier clipping, and feature scaling.
+- K-fold cross-validation for robustness and generalization assessment.
 
-3. **Prediction Interface**: 
-   - User-friendly input forms
-   - Real-time predictions
-   - Treatment efficiency calculations
+This design supports reliable near real-time prediction and improves readiness for proactive wetland operation decisions.
 
-4. **Model Performance**: 
-   - Actual vs predicted visualizations
-   - Residual analysis
-   - Model validation metrics
+## Key Features
 
-## Data Files Required
+- Interactive Streamlit dashboards.
+- Upload-your-own CSV training support.
+- Model diagnostics: R2, RMSE, feature importance, and seasonal R2 view.
+- Prediction-oriented UI for fast what-if analysis.
 
-Make sure the following CSV files are in your Downloads folder:
-- `inlet values.csv`
-- `outlet values.csv` 
-- `to train data (1).csv`
-- `weather values.csv`
+## Applications
 
-## Installation
+### 1) BOD Predictor
 
-1. Install required packages:
-```bash
-pip install streamlit pandas numpy scikit-learn plotly
+File: `bod_predictor.py`
+
+- Model: `GradientBoostingRegressor`
+- Inputs: `Weeks`, `Inlet_BOD`, `Weather_tavg`, `Weather_prcp`, `Weather_wspd`, `Weather_rhum`
+- Engineered features: `Week_Sin`, `Week_Cos`
+- Preprocessing: type cleanup, NA removal, IQR clipping, scaling (`StandardScaler`)
+- Validation: K-fold cross-validation
+- Outputs:
+	- Predicted `Outlet_BOD`
+	- Treatment efficiency
+	- Status badge (Safe / Warning / Critical)
+	- Feature-importance plot
+	- Seasonal performance diagnostics
+
+### 2) Wastewater Quality Predictor
+
+File: `water_treatment_predictor.py`
+
+- Model: Separate `RandomForestRegressor` per outlet parameter
+- Scope: Predicts multiple outlet water-quality targets from inlet + weather features
+- Views: Data Analysis, Model Training, Prediction, and Model Performance
+
+## Repository Contents
+
+- `bod_predictor.py`
+- `water_treatment_predictor.py`
+- `requirements.txt`
+- `BOD.csv`, `BOD_50weeks.csv`, `water_data.csv`
+- Additional working data files in repository root as available
+
+## Environment Setup
+
+1. Create and activate a virtual environment.
+
+Windows PowerShell:
+
+```powershell
+python -m venv .venv
+.venv\Scripts\Activate.ps1
 ```
 
-## Running the Application
+macOS/Linux:
 
-1. Navigate to the application directory:
 ```bash
-cd /Users/pavan
+python3 -m venv .venv
+source .venv/bin/activate
 ```
 
-2. Run the Streamlit app:
+2. Install dependencies.
+
+```bash
+pip install -r requirements.txt
+```
+
+## Run
+
+From `wetland/amar`:
+
+```bash
+streamlit run bod_predictor.py
+```
+
+or
+
 ```bash
 streamlit run water_treatment_predictor.py
 ```
 
-3. Open your web browser and go to the URL displayed in the terminal (usually `http://localhost:8501`)
+## Methodology Notes (BOD Module)
 
-## How to Use
+- Target variable: `Outlet_BOD`
+- Core predictors: inlet BOD + meteorology + seasonal progression
+- Seasonal encoding:
+	- `Week_Sin = sin(2 * pi * week / 52)`
+	- `Week_Cos = cos(2 * pi * week / 52)`
+- Robustness strategy: K-fold cross-validation with fold-wise R2 aggregation
+- Interpretation strategy: model-based feature importance and seasonal segment diagnostics
 
-### Step 1: Data Analysis
-- Start by exploring the "Data Analysis" page to understand your dataset
-- Review correlations and time series trends
+## Requirements
 
-### Step 2: Model Training
-- Go to "Model Training" page and wait for models to train
-- Review performance metrics and feature importance
+Dependencies are pinned in `requirements.txt` and include:
 
-### Step 3: Make Predictions
-- Navigate to "Prediction" page
-- Input your inlet parameters and weather data
-- Click "Predict Outlet Values" to get results
-- Review treatment efficiency calculations
+- `streamlit`
+- `pandas`
+- `numpy`
+- `scikit-learn`
+- `plotly`
+- `openpyxl`
+- Additional analysis stack: `xgboost`, `joblib`, `matplotlib`, `seaborn`
 
-### Step 4: Evaluate Performance
-- Check "Model Performance" page for detailed analysis
-- Review actual vs predicted plots and residual analysis
+## Troubleshooting
 
-## Model Information
+- If Streamlit fails to launch, confirm the virtual environment is active.
+- If CSV load fails, verify the expected column structure and delimiter.
+- If plots do not render, ensure `plotly` is installed in the active environment.
 
-- **Algorithm**: Random Forest Regressor
-- **Features**: 14 input features (8 inlet + 6 weather parameters)
-- **Targets**: 8 outlet parameters
-- **Training**: Individual models for each outlet parameter
-- **Preprocessing**: StandardScaler normalization
+## License
 
-## Input Parameters
-
-### Inlet Parameters
-- BOD (mg/l): Biochemical Oxygen Demand
-- COD (mg/l): Chemical Oxygen Demand  
-- TDS (mg/l): Total Dissolved Solids
-- EC (mS/cm): Electrical Conductivity
-- NH4 (mg/l): Ammonia
-- NO3 (mg/l): Nitrate
-- DO: Dissolved Oxygen
-- pH: Acidity/Alkalinity level
-
-### Weather Parameters
-- Average Temperature (°C)
-- Minimum Temperature (°C)
-- Maximum Temperature (°C)
-- Precipitation (mm)
-- Wind Speed
-- Pressure
-
-## Output
-
-The application provides:
-- Predicted outlet values for all parameters
-- Treatment efficiency percentages
-- Interactive visualizations
-- Model performance metrics
-
-## Technical Details
-
-- **Framework**: Streamlit
-- **ML Library**: Scikit-learn
-- **Visualization**: Plotly
-- **Data Processing**: Pandas, Numpy
-- **Model Type**: Ensemble (Random Forest)
-- **Validation**: Train-test split with performance metrics
-
-## Support
-
-For any issues or questions, please ensure:
-1. All CSV files are in the correct location
-2. All dependencies are installed
-3. Python version is compatible (3.7+)
-
----
-Built with ❤️ using Streamlit and Machine Learning
-
-# 💧 Wastewater Quality Prediction System
-
-A comprehensive machine learning web application for predicting outlet water quality parameters based on inlet conditions and weather data.
-
-## 📋 Features
-
-### Core Functionality
-- **Real-time Prediction**: Predict outlet water quality parameters using inlet conditions and weather data
-- **Interactive UI**: Clean, modern Streamlit interface with sidebar input controls
-- **Multi-parameter Prediction**: Simultaneously predicts 8 outlet parameters:
-  - BOD (mg/l)
-  - COD (mg/l) 
-  - TDS (mg/l)
-  - EC (mS/cm)
-  - NH4 (mg/l)
-  - NO3 (mg/l)
-  - DO
-  - pH
-
-### Advanced Features
-- **Feature Importance Analysis**: Visual representation of which parameters most influence predictions
-- **Treatment Efficiency Calculation**: Shows removal/improvement percentages for each parameter
-- **Batch Prediction**: Upload Excel files for processing multiple samples at once
-- **Model Performance Metrics**: Displays correlation matrices and model statistics
-- **Template Download**: Provides properly formatted templates for batch uploads
-
-## 🚀 Quick Start
-
-### Installation
-
-1. **Clone or download the project files**
-2. **Create a virtual environment:**
-   ```bash
-   python3 -m venv wastewater_env
-   source wastewater_env/bin/activate
-   ```
-
-3. **Install required packages:**
-   ```bash
-   pip install pandas openpyxl streamlit scikit-learn xgboost joblib matplotlib seaborn plotly
-   ```
-
-### Running the Application
-
-1. **Train the model (first time only):**
-   ```bash
-   python train_model.py
-   ```
-
-2. **Launch the Streamlit app:**
-   ```bash
-   streamlit run streamlit_app.py
-   ```
-
-3. **Open your browser** and navigate to the displayed URL (typically `http://localhost:8501`)
-
-## 📊 Usage Instructions
-
-### Single Prediction
-1. **Enter Parameters**: Use the sidebar to input water quality and weather parameters
-2. **Click Predict**: Press the "🔮 Predict Outlet Quality" button
-3. **View Results**: Check the results table and visualizations
-
-### Batch Prediction
-1. **Go to Batch Prediction tab**
-2. **Download template** to see the required format
-3. **Upload your Excel file** with multiple samples
-4. **Process and download results** as CSV
-
-## 🧠 Model Details
-
-- **Algorithm**: Random Forest Regressor with MultiOutput wrapper
-- **Features**: 9 input parameters (8 water quality + 1 weather)
-- **Targets**: 8 outlet water quality parameters
-- **Performance**: Uses standardized features and cross-validation
-
-## 📁 File Structure
-
-```
-wastewater_prediction/
-├── streamlit_app.py           # Main Streamlit application
-├── train_model.py            # Model training and evaluation
-├── data_preprocessing.py     # Data loading and preprocessing
-├── wastewater_model.pkl     # Trained model (generated)
-└── README.md                # This documentation
-```
-
----
-
-**Built with ❤️ using Streamlit, scikit-learn, and Python**
+No license file is currently included. Add one before public release.
